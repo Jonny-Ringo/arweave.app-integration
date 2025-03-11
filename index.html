@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO Wallet Interface</title>
+    <!-- No external libraries needed -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>AO Wallet Interface</h1>
+        
+        <div class="card">
+            <h2>Wallet Connection</h2>
+            <button id="connectButton">Connect with arweave.app</button>
+            <div id="walletStatus" class="disconnected">
+                Status: Disconnected
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>AO Process</h2>
+            <div class="info-box">
+                Using process ID: 0syT13r0s0tgPmIed95bJnuSqaD29HQNN8D3ElLSrsc
+            </div>
+            
+            <div class="section-header">
+                <h3>Balance</h3>
+                <div class="balance-wrapper">
+                    <button id="checkBalanceButton" disabled>Check Balance</button>
+                    <div id="balanceDisplay">Balance: Not checked</div>
+                </div>
+            </div>
+            
+            <div class="section-header">
+                <h3>Transfer</h3>
+                <button id="transferButton" disabled>Transfer AO</button>
+            </div>
+            
+            <div id="transferForm">
+                <h4 class="form-title">Send AO Tokens</h4>
+                <div class="input-group">
+                    <label for="recipientInput">Recipient Address:</label>
+                    <input type="text" id="recipientInput" placeholder="Enter recipient address or process ID">
+                </div>
+                <div class="input-group">
+                    <label for="amountInput">Amount (AO):</label>
+                    <input type="number" id="amountInput" placeholder="Enter amount to send" step="0.000001" min="0.000001">
+                    <small>This will be converted to 12 decimal places automatically</small>
+                </div>
+                <button id="sendTransferButton">Send Transfer</button>
+            </div>
+            
+            <h3>Response</h3>
+            <div id="message">No response yet</div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="connect.js"></script>
+</body>
+</html>

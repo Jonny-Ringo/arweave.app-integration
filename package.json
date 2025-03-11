@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "arweave-wallet-connector": "^1.0.2"
+  }
+}
