@@ -1,6 +1,7 @@
 // connect.js - Fixed version with one-click wallet connection
-import { dryrun, message, createDataItemSigner } from "https://unpkg.com/@permaweb/aoconnect@0.0.59/dist/browser.js";
+import { dryrun, createDataItemSigner } from "https://unpkg.com/@permaweb/aoconnect@0.0.59/dist/browser.js";
 import { ArweaveWebWallet } from 'https://cdn.skypack.dev/arweave-wallet-connector';
+ 
 
 
 // Constants
@@ -172,98 +173,50 @@ function toggleTransferForm() {
 }
 
 // Send transfer function using ArConnect and ArDataItem
-// Send transfer function with fixed tags
-async function sendTransfer() {
-    const recipient = recipientInput.value.trim();
-    const amount = amountInput.value.trim();
+async function sendAO() {
+    const recipient = document.getElementById('recipientInput').value.trim();
+    const amount = document.getElementById('amountInput').value.trim();
 
     if (!recipient || !amount) {
         showToast('Please fill in all fields');
         return;
     }
 
-    // Check connection
-    await checkWalletConnection();
-
-    if (!arweaveAddress) {
-        showToast('Please connect your wallet in arweave.app first');
-        return;
-    }
-
     try {
-        // Explicitly prompt for connection permissions
-        await window.arweaveWallet.connect(['ACCESS_ADDRESS', 'SIGN_TRANSACTION', 'DISPATCH']);
 
-        // Convert amount to atomic units (12 decimal places)
-        const atomicAmount = Math.floor(parseFloat(amount) * 1e12).toString();
-        messageElement.textContent = 'Preparing transfer...';
-        
-        // Create a transaction object with minimal data to make it valid
-        const arweave = Arweave.init();
-        const tx = await arweave.createTransaction({
-            target: recipient,  // Using target to make it a valid tx
-            quantity: "0",      // Zero quantity to avoid actual AR transfer
-            data: ""            // Empty data
+        // Convert amount to atomic units (12 decimals)
+        const atomicAmount = (parseFloat(amount) * 1e12).toFixed(0);
+
+        // Create a DataItem using `signDataItem`
+        const signedDataItem = await wallet.signDataItem({
+            target: AO_PROCESS_ID,  // AO process ID
+            tags: [
+                { name: "Action", value: "Transfer" },
+                { name: "Recipient", value: recipient },
+                { name: "Quantity", value: atomicAmount }
+            ],
+            data: ""  // Empty data field
         });
-        
-        // Add the necessary tags
-        tx.addTag("Action", "Transfer");
-        tx.addTag("Target", AO_PROCESS_ID);
-        tx.addTag("Recipient", recipient);
-        tx.addTag("Quantity", atomicAmount);
-        
-        console.log("Prepared transaction:", tx);
-        
-        // Sign the transaction
-        await window.arweaveWallet.sign(tx);
-        console.log("Signed transaction:", tx);
-        
-        // Create simple tags manually
-        const messageTags = [
-            { name: "Action", value: "Transfer" },
-            { name: "Recipient", value: recipient },
-            { name: "Quantity", value: atomicAmount }
-        ];
-        
-        // Create the message data with unencoded tags and empty data
-        const messageData = {
-            process: AO_PROCESS_ID,
-            tags: messageTags,  // Use manually created tags instead of tx.tags
-            anchor: Date.now().toString(),
-            signature: tx.signature,
-            owner: arweaveAddress,
-            data: ""  // Empty string for data
-        };
-        
-        console.log("Full message payload:", JSON.stringify(messageData, null, 2));
-        
-        const response = await fetch(`${GATEWAY_URL}`, {
+
+        console.log("Signed DataItem:", signedDataItem);
+
+        // Send DataItem to AO
+        const response = await fetch(GATEWAY_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(messageData)
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: signedDataItem
         });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Full gateway error response:', errorText);
-            throw new Error(`Gateway error: ${response.status} - ${errorText}`);
-        }
 
         const result = await response.json();
-        console.log("Transfer response:", result);
-        
-        messageElement.textContent = "Transfer sent! Transaction ID: " + (result.id || "unknown");
-        showToast("Transfer sent successfully");
-        
+        alert(`Transfer successful! TX ID: ${result.id}`);
     } catch (error) {
-        messageElement.textContent = "Error: " + error.message;
-        showToast("Error sending transfer: " + error.message);
-        console.error("Detailed transfer error:", error);
+        console.error("Error sending AO:", error);
+        alert("Transfer failed. Check console for details.");
     }
 }
+
+document.getElementById('sendTransferButton').addEventListener('click', sendAO);
+
 
 
 // Toast notification function
@@ -289,7 +242,7 @@ connectButton.addEventListener('click', async () => {
 
 checkBalanceButton.addEventListener('click', checkBalance);
 transferButton.addEventListener('click', toggleTransferForm);
-sendTransferButton.addEventListener('click', sendTransfer);
+sendTransferButton.addEventListener('click', sendAO);
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', async () => {
