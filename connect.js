@@ -171,7 +171,8 @@ function toggleTransferForm() {
     }
 }
 
-// Send transfer function with direct signing
+// Send transfer function using ArConnect and ArDataItem
+// Send transfer function with fixed tags
 async function sendTransfer() {
     const recipient = recipientInput.value.trim();
     const amount = amountInput.value.trim();
@@ -191,50 +192,47 @@ async function sendTransfer() {
 
     try {
         // Explicitly prompt for connection permissions
-        await window.arweaveWallet.connect(['ACCESS_ADDRESS', 'SIGN_TRANSACTION']);
+        await window.arweaveWallet.connect(['ACCESS_ADDRESS', 'SIGN_TRANSACTION', 'DISPATCH']);
 
         // Convert amount to atomic units (12 decimal places)
         const atomicAmount = Math.floor(parseFloat(amount) * 1e12).toString();
         messageElement.textContent = 'Preparing transfer...';
         
-        // Create plain transaction object
-        const arweave = Arweave.init();  // Ensure Arweave SDK is initialized
-
-        const transaction = await arweave.createTransaction({
-            target: recipient,
-            quantity: atomicAmount,
-            data: "AO Transfer"
+        // Create a transaction object with minimal data to make it valid
+        const arweave = Arweave.init();
+        const tx = await arweave.createTransaction({
+            target: recipient,  // Using target to make it a valid tx
+            quantity: "0",      // Zero quantity to avoid actual AR transfer
+            data: ""            // Empty data
         });
-        transaction.addTag("Action", "Transfer");
-        transaction.addTag("Target", AO_PROCESS_ID);
-        transaction.addTag("Recipient", recipient);
-        transaction.addTag("Quantity", atomicAmount);
-
-        console.log("Signing transaction:", transaction);
         
-        // Sign the transaction with arweave.app wallet
-        const signedTx = await wallet.signTransaction(transaction);
-        console.log("Signed transaction:", signedTx);
+        // Add the necessary tags
+        tx.addTag("Action", "Transfer");
+        tx.addTag("Target", AO_PROCESS_ID);
+        tx.addTag("Recipient", recipient);
+        tx.addTag("Quantity", atomicAmount);
         
-        // Transfer tags without base64 encoding for the message
+        console.log("Prepared transaction:", tx);
+        
+        // Sign the transaction
+        await window.arweaveWallet.sign(tx);
+        console.log("Signed transaction:", tx);
+        
+        // Create simple tags manually
         const messageTags = [
             { name: "Action", value: "Transfer" },
-            { name: "Target", value: AO_PROCESS_ID },
             { name: "Recipient", value: recipient },
-            { name: "Quantity", value: atomicAmount },
-            { name: 'SDK', value: 'aoconnect' },
-            { name: 'Data-Protocol', value: 'ao' },
-            { name: 'Variant', value: 'ao.TN.1' },
-            { name: 'Type', value: 'Message' }
+            { name: "Quantity", value: atomicAmount }
         ];
         
-        // Create the message data
+        // Create the message data with unencoded tags and empty data
         const messageData = {
             process: AO_PROCESS_ID,
-            tags: messageTags,
+            tags: messageTags,  // Use manually created tags instead of tx.tags
             anchor: Date.now().toString(),
-            signature: signedTx.signature,
-            owner: arweaveAddress
+            signature: tx.signature,
+            owner: arweaveAddress,
+            data: ""  // Empty string for data
         };
         
         console.log("Full message payload:", JSON.stringify(messageData, null, 2));
@@ -259,7 +257,6 @@ async function sendTransfer() {
         
         messageElement.textContent = "Transfer sent! Transaction ID: " + (result.id || "unknown");
         showToast("Transfer sent successfully");
-        
         
     } catch (error) {
         messageElement.textContent = "Error: " + error.message;
