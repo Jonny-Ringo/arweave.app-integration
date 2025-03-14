@@ -1,12 +1,9 @@
-// connect.js - Fixed version with one-click wallet connection
 import { dryrun, createDataItemSigner } from "https://unpkg.com/@permaweb/aoconnect@0.0.59/dist/browser.js";
 import { ArweaveWebWallet } from 'https://cdn.skypack.dev/arweave-wallet-connector';
- 
-
 
 // Constants
 const AO_PROCESS_ID = "0syT13r0s0tgPmIed95bJnuSqaD29HQNN8D3ElLSrsc";
-const GATEWAY_URL = "https://mu.ao-testnet.xyz/";
+const GATEWAY_URL = "https://su201.ao-testnet.xyz";
 
 // Variables
 let arweaveAddress = null;
@@ -14,110 +11,79 @@ let walletConnected = false;
 
 // Initialize elements
 const connectButton = document.getElementById('connectButton');
-const walletStatus = document.getElementById('walletStatus');
 const checkBalanceButton = document.getElementById('checkBalanceButton');
 const messageElement = document.getElementById('message');
-const balanceDisplay = document.getElementById('balanceDisplay');
-const transferButton = document.getElementById('transferButton');
+const balanceValue = document.getElementById('balanceValue');
+const transferForm = document.getElementById('transferForm');
 const recipientInput = document.getElementById('recipientInput');
 const amountInput = document.getElementById('amountInput');
 const sendTransferButton = document.getElementById('sendTransferButton');
+const copyProcessButton = document.getElementById('copyProcess');
+const tabs = document.querySelectorAll('.tab');
+const tabContents = document.querySelectorAll('.tab-content');
 
+// Initialize ArweaveWebWallet
 const wallet = new ArweaveWebWallet({
-    name: 'Connector Example',
+    name: 'Transfer AO',
     logo: 'https://jfbeats.github.io/ArweaveWalletConnector/placeholder.svg'
 });
 
 wallet.setUrl('https://arweave.app');
 
-// One-click connection function
+// Connect wallet function
 async function connectWallet() {
     try {
         await wallet.connect();
-        arweaveAddress = await wallet.getActiveAddress();
-        walletConnected = true;
-        updateUIForConnectedWallet();
-    } catch (error) {
-        console.error("Error connecting wallet:", error);
-        showToast("Failed to connect wallet. Please try again.");
-    }
-}
-
-// Connect wallet directly on button click
-connectButton.addEventListener('click', connectWallet);
-
-
-// Manual approach for arweave.app
-function handleArweaveAppConnection() {
-    // Check if arweave.app wallet is already connected
-    if (window.arweaveWallet) {
-        checkWalletConnection();
-    } else {
-        showToast("Please open arweave.app in another tab and connect your wallet");
-        // Open arweave.app in a new tab
-        window.open("https://arweave.app", "_blank");
-    }
-}
-
-// Check if wallet is connected
-async function checkWalletConnection() {
-    try {
+        // Need to use window.arweaveWallet after connection is established
         if (window.arweaveWallet) {
-            // Try to get active address
-            const address = await window.arweaveWallet.getActiveAddress();
-            if (address) {
-                arweaveAddress = address;
-                updateUIForConnectedWallet();
-            }
+            arweaveAddress = await window.arweaveWallet.getActiveAddress();
+            walletConnected = true;
+            updateUIForConnectedWallet();
+        } else {
+            throw new Error("ArweaveWallet not available after connection");
         }
     } catch (error) {
-        console.error("Error checking wallet connection:", error);
-        showToast("Error checking wallet connection. Make sure you've connected in arweave.app");
+        console.error("Error connecting wallet:", error);
+        showToast("Failed to connect wallet. Please try again.", "error");
     }
 }
 
 // Update UI for connected wallet
 function updateUIForConnectedWallet() {
     if (arweaveAddress) {
-        walletStatus.textContent = `Status: Connected - ${arweaveAddress.slice(0, 6)}...${arweaveAddress.slice(-6)}`;
-        walletStatus.classList.remove('disconnected');
-        walletStatus.classList.add('connected');
+        // Update connect button
+        connectButton.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+                <line x1="2" x2="22" y1="10" y2="10"></line>
+            </svg>
+            ${arweaveAddress.slice(0, 4)}...${arweaveAddress.slice(-4)}
+        `;
+        connectButton.classList.add('connected-btn');
         
-        connectButton.textContent = 'Check Connection';
+        // Enable buttons
         checkBalanceButton.disabled = false;
-        transferButton.disabled = false;
+        sendTransferButton.disabled = false;
         
-        showToast('Wallet connection detected!');
+        showToast("Wallet connected successfully", "success");
+        
+        // Check balance automatically
+        checkBalance();
     }
 }
 
 // Check balance function
 async function checkBalance() {
-    // First ensure we have wallet access
-    await checkWalletConnection();
-    
     if (!arweaveAddress) {
-        showToast('Please connect your wallet in arweave.app first');
+        showToast('Please connect your wallet first', "error");
         return;
     }
     
     try {
-        balanceDisplay.textContent = 'Checking...';
+        balanceValue.textContent = "...";
         
-        // Explicitly prompt for connection permissions if needed
-        try {
-            if (window.arweaveWallet.connect) {
-                await window.arweaveWallet.connect(['ACCESS_ADDRESS', 'SIGN_TRANSACTION', 'SIGNATURE']);
-            }
-        } catch (e) {
-            console.log("Connect error or already connected:", e);
-        }
-        
-        // Create data item signer with explicit timeout
+        // Create data item signer with window.arweaveWallet
         const signer = createDataItemSigner(window.arweaveWallet);
-        
-        console.log("Wallet address being used:", arweaveAddress);
-        console.log("About to send balance request");
         
         // Use dryrun with Balance action
         const response = await dryrun({
@@ -138,8 +104,8 @@ async function checkBalance() {
                         // Convert from atomic units (12 decimals)
                         const atomicBalance = parseInt(tag.value);
                         const balance = atomicBalance / 1e12;
-                        balanceDisplay.textContent = `Balance: ${balance.toFixed(6)} AO`;
-                        showToast('Balance check completed');
+                        balanceValue.textContent = balance.toFixed(6);
+                        showToast('Balance updated', "success");
                         
                         // Display response
                         messageElement.textContent = JSON.stringify(response, null, 2);
@@ -150,79 +116,88 @@ async function checkBalance() {
         }
         
         // If we reach here, no balance was found
-        balanceDisplay.textContent = 'Balance: Not found';
+        balanceValue.textContent = "0.000000";
         
         // Display the full response in the message area for debugging
         messageElement.textContent = JSON.stringify(response, null, 2);
         
     } catch (error) {
-        balanceDisplay.textContent = 'Balance: Error';
+        balanceValue.textContent = "Error";
         messageElement.textContent = 'Error: ' + error.message;
-        showToast('Error checking balance: ' + error.message);
+        showToast('Error checking balance: ' + error.message, "error");
         console.error('Error checking balance:', error);
     }
 }
 
-// Toggle transfer form
-function toggleTransferForm() {
-    if (transferForm.style.display === 'none' || !transferForm.style.display) {
-        transferForm.style.display = 'block';
-    } else {
-        transferForm.style.display = 'none';
-    }
-}
-
-// Send transfer function using ArConnect and ArDataItem
-async function sendAO() {
-    const recipient = document.getElementById('recipientInput').value.trim();
-    const amount = document.getElementById('amountInput').value.trim();
-
+// Send transfer function
+async function sendAO(e) {
+    e.preventDefault();
+    
+    const recipient = recipientInput.value.trim();
+    const amount = amountInput.value.trim();
+    
     if (!recipient || !amount) {
-        showToast('Please fill in all fields');
+        showToast('Please fill in all fields', "error");
         return;
     }
-
+    
     try {
-
         // Convert amount to atomic units (12 decimals)
         const atomicAmount = (parseFloat(amount) * 1e12).toFixed(0);
-
-        // Create a DataItem using `signDataItem`
+        
+        // Create a DataItem using the original wallet.signDataItem method
         const signedDataItem = await wallet.signDataItem({
-            target: AO_PROCESS_ID,  // AO process ID
+            target: AO_PROCESS_ID,
             tags: [
                 { name: "Action", value: "Transfer" },
                 { name: "Recipient", value: recipient },
-                { name: "Quantity", value: atomicAmount }
+                { name: "Quantity", value: atomicAmount },
+                { name: "Data-Protocol", value: "ao" },
+                { name: "Variant", value: "ao.TN.1" },
+                { name: "Type", value: "Message" },
+                { name: "SDK", value: "aoconnect" }
             ],
             data: ""  // Empty data field
         });
-
+        
         console.log("Signed DataItem:", signedDataItem);
-
+        
         // Send DataItem to AO
         const response = await fetch(GATEWAY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/octet-stream' },
-            body: signedDataItem
+            headers: { 'Content-Type': 'application/json' },
+            body: new Blob([signedDataItem])
         });
-
+        
         const result = await response.json();
-        alert(`Transfer successful! TX ID: ${result.id}`);
+        showToast(`Transfer successful! TX ID: ${result.id.slice(0, 8)}...`, "success");
+        
+        // Reset form
+        recipientInput.value = "";
+        amountInput.value = "";
+        
+        // Update message element
+        messageElement.textContent = JSON.stringify(result, null, 2);
+        
+        // Check balance after transfer
+        setTimeout(checkBalance, 2000);
+        
     } catch (error) {
         console.error("Error sending AO:", error);
-        alert("Transfer failed. Check console for details.");
+        showToast("Transfer failed. Check console for details.", "error");
     }
 }
 
-document.getElementById('sendTransferButton').addEventListener('click', sendAO);
-
-
-
 // Toast notification function
-function showToast(message) {
+function showToast(message, type = "") {
     const toast = document.getElementById('toast');
     toast.textContent = message;
+    toast.className = 'toast';
+    
+    if (type) {
+        toast.classList.add(type);
+    }
+    
     toast.classList.add('show');
     
     setTimeout(() => {
@@ -230,47 +205,54 @@ function showToast(message) {
     }, 3000);
 }
 
-// Add event listeners
-connectButton.addEventListener('click', async () => {
-    // Always check for connection when button is clicked
-    if (window.arweaveWallet) {
-        await checkWalletConnection();
-    } else {
-        handleArweaveAppConnection();
-    }
-});
+// Copy process ID function
+function copyProcessId() {
+    navigator.clipboard.writeText(AO_PROCESS_ID)
+        .then(() => {
+            showToast("Process ID copied to clipboard", "success");
+        })
+        .catch(err => {
+            console.error('Failed to copy: ', err);
+            showToast("Failed to copy Process ID", "error");
+        });
+}
 
+// Tab switching function
+function switchTab(tabId) {
+    // Reset all tabs
+    tabs.forEach(tab => tab.classList.remove('active'));
+    tabContents.forEach(content => content.classList.remove('active'));
+    
+    // Activate selected tab
+    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById(`${tabId}Tab`).classList.add('active');
+}
+
+// Add event listeners
+connectButton.addEventListener('click', connectWallet);
 checkBalanceButton.addEventListener('click', checkBalance);
-transferButton.addEventListener('click', toggleTransferForm);
-sendTransferButton.addEventListener('click', sendAO);
+transferForm.addEventListener('submit', sendAO);
+copyProcessButton.addEventListener('click', copyProcessId);
+
+// Tab event listeners
+tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        switchTab(tab.dataset.tab);
+    });
+});
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', async () => {
-    // Check if arweaveWallet is already injected
-    if (window.arweaveWallet) {
-        connectButton.textContent = 'Check Connection';
-        await checkWalletConnection();
-    } else {
-        // Update button text to guide user
-        connectButton.textContent = 'Connect with arweave.app';
-        walletStatus.textContent = 'Status: Disconnected (Open arweave.app)';
-        
-        // Disable buttons until connected
-        checkBalanceButton.disabled = true;
-        transferButton.disabled = true;
-    }
-    
-    // Hide transfer form initially
-    transferForm.style.display = 'none';
-});
-
-// Also periodically check for wallet injection
-const checkInterval = setInterval(async () => {
-    if (window.arweaveWallet && !arweaveAddress) {
-        console.log("arweaveWallet detected, checking connection...");
-        await checkWalletConnection();
-        if (arweaveAddress) {
-            clearInterval(checkInterval);
+    // Check if wallet can be connected
+    try {
+        if (window.arweaveWallet) {
+            const address = await window.arweaveWallet.getActiveAddress();
+            if (address) {
+                arweaveAddress = address;
+                updateUIForConnectedWallet();
+            }
         }
+    } catch (error) {
+        console.log("No wallet connected yet");
     }
-}, 2000);
+});
