@@ -1,4 +1,4 @@
-import { dryrun, createDataItemSigner } from "https://unpkg.com/@permaweb/aoconnect@0.0.59/dist/browser.js";
+import { dryrun, createDataItemSigner } from "https://unpkg.com/@permaweb/aoconnect@0.0.69/dist/browser.js";
 import { ArweaveWebWallet } from 'https://cdn.skypack.dev/arweave-wallet-connector';
 
 // Constants
@@ -11,7 +11,6 @@ let walletConnected = false;
 
 // Initialize elements
 const connectButton = document.getElementById('connectButton');
-const checkBalanceButton = document.getElementById('checkBalanceButton');
 const messageElement = document.getElementById('message');
 const balanceValue = document.getElementById('balanceValue');
 const transferForm = document.getElementById('transferForm');
@@ -19,13 +18,12 @@ const recipientInput = document.getElementById('recipientInput');
 const amountInput = document.getElementById('amountInput');
 const sendTransferButton = document.getElementById('sendTransferButton');
 const copyProcessButton = document.getElementById('copyProcess');
-const tabs = document.querySelectorAll('.tab');
-const tabContents = document.querySelectorAll('.tab-content');
+const retryBalance = document.getElementById('retryBalance');
 
 // Initialize ArweaveWebWallet
 const wallet = new ArweaveWebWallet({
-    name: 'Transfer AO',
-    logo: 'https://jfbeats.github.io/ArweaveWalletConnector/placeholder.svg'
+    name: 'AO Transfers',
+    logo: 'https://arweave.net/AzM59q2tcYzkySUUZUN1HCwfKGVHi--71UdoIk5gPUE'
 });
 
 wallet.setUrl('https://arweave.app');
@@ -61,8 +59,7 @@ function updateUIForConnectedWallet() {
         `;
         connectButton.classList.add('connected-btn');
         
-        // Enable buttons
-        checkBalanceButton.disabled = false;
+        // Enable send transfer button
         sendTransferButton.disabled = false;
         
         showToast("Wallet connected successfully", "success");
@@ -81,6 +78,7 @@ async function checkBalance() {
     
     try {
         balanceValue.textContent = "...";
+        retryBalance.style.display = 'none';
         
         // Create data item signer with window.arweaveWallet
         const signer = createDataItemSigner(window.arweaveWallet);
@@ -96,21 +94,35 @@ async function checkBalance() {
             signer: signer
         });
         
+        console.log("Balance response:", response);
+        
         // Parse the response for balance
         if (response && response.Messages && response.Messages.length > 0) {
             for (const message of response.Messages) {
-                for (const tag of message.Tags || []) {
-                    if (tag.name === "Balance") {
-                        // Convert from atomic units (12 decimals)
-                        const atomicBalance = parseInt(tag.value);
-                        const balance = atomicBalance / 1e12;
-                        balanceValue.textContent = balance.toFixed(6);
-                        showToast('Balance updated', "success");
-                        
-                        // Display response
-                        messageElement.textContent = JSON.stringify(response, null, 2);
-                        return;
+                if (message.Tags) {
+                    for (const tag of message.Tags) {
+                        if (tag.name === "Balance") {
+                            // Convert from atomic units (12 decimals)
+                            const atomicBalance = parseInt(tag.value);
+                            const balance = atomicBalance / 1e12;
+                            balanceValue.textContent = balance.toFixed(6);
+                            
+                            // Display response
+                            messageElement.textContent = JSON.stringify(response, null, 2);
+                            return;
+                        }
                     }
+                }
+            }
+            
+            // If we get here, check if balance is in Data field
+            if (response.Messages[0].Data) {
+                const atomicBalance = parseInt(response.Messages[0].Data);
+                if (!isNaN(atomicBalance)) {
+                    const balance = atomicBalance / 1e12;
+                    balanceValue.textContent = balance.toFixed(6);
+                    messageElement.textContent = JSON.stringify(response, null, 2);
+                    return;
                 }
             }
         }
@@ -126,6 +138,9 @@ async function checkBalance() {
         messageElement.textContent = 'Error: ' + error.message;
         showToast('Error checking balance: ' + error.message, "error");
         console.error('Error checking balance:', error);
+        
+        // Show retry button
+        retryBalance.style.display = 'inline-flex';
     }
 }
 
@@ -217,29 +232,11 @@ function copyProcessId() {
         });
 }
 
-// Tab switching function
-function switchTab(tabId) {
-    // Reset all tabs
-    tabs.forEach(tab => tab.classList.remove('active'));
-    tabContents.forEach(content => content.classList.remove('active'));
-    
-    // Activate selected tab
-    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
-    document.getElementById(`${tabId}Tab`).classList.add('active');
-}
-
 // Add event listeners
 connectButton.addEventListener('click', connectWallet);
-checkBalanceButton.addEventListener('click', checkBalance);
 transferForm.addEventListener('submit', sendAO);
 copyProcessButton.addEventListener('click', copyProcessId);
-
-// Tab event listeners
-tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        switchTab(tab.dataset.tab);
-    });
-});
+retryBalance.addEventListener('click', checkBalance);
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', async () => {

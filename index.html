@@ -18,16 +18,22 @@
     <div class="container">
         <header>
             <div class="logo">
-                <span class="ao-icon">ⓐ</span>
-                Transfer AO
+                <img class="ao-icon" src= "https://arweave.net/AzM59q2tcYzkySUUZUN1HCwfKGVHi--71UdoIk5gPUE"> </img>
+                Transfers for Arweave.app Wallet
             </div>
-            <button id="connectButton" class="connect-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect width="20" height="14" x="2" y="5" rx="2"></rect>
-                    <line x1="2" x2="22" y1="10" y2="10"></line>
-                </svg>
-                Connect Wallet
-            </button>
+            <div class="header-right">
+                <div id="balanceDisplay" class="balance-header">
+                    <span id="balanceValue">--</span> AO
+                </div>
+                <button id="connectButton" class="connect-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+                        <line x1="2" x2="22" y1="10" y2="10"></line>
+                    </svg>
+                    Connect Wallet
+                </button>
+                <img src="icon.png" alt="AO Icon" class="ao-logo-img" onerror="this.style.display='none'">
+            </div>
         </header>
         
         <main>
@@ -46,33 +52,20 @@
                         </button>
                     </div>
                     
-                    <div class="tab-container">
-                        <div class="tab active" data-tab="balance">Balance</div>
-                        <div class="tab" data-tab="transfer">Transfer</div>
+                    <div class="info-alert">
+                        Connect your wallet to transfer AO tokens. Your balance will automatically be displayed after connection.
+                        <span id="retryBalance" class="retry-balance" style="display: none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 2v6h-6"></path>
+                                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                                <path d="M3 22v-6h6"></path>
+                                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                            </svg>
+                            Retry Balance Check
+                        </span>
                     </div>
                     
-                    <div id="balanceTab" class="tab-content active">
-                        <div class="balance-display">
-                            <div>
-                                <div id="balanceValue" class="balance-value">--</div>
-                                <div class="balance-label">AO Balance</div>
-                            </div>
-                            <button id="checkBalanceButton" class="refresh-btn" title="Refresh Balance" disabled>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 2v6h-6"></path>
-                                    <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                                    <path d="M3 22v-6h6"></path>
-                                    <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <div class="info-alert">
-                            Connect your wallet to check your AO balance. Balance updates may take a few moments to process.
-                        </div>
-                    </div>
-                    
-                    <div id="transferTab" class="tab-content">
+                    <div
                         <form id="transferForm">
                             <div class="form-group">
                                 <label for="recipientInput" class="form-label">Recipient Address</label>
